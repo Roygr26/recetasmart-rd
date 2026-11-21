@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecetaSmart RD — Comparador de Precios de Recetas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jumbo: { DEFAULT: '#E31837', light: '#FEE2E2', dark: '#991B1B' },
+                        sirena: { DEFAULT: '#1E40AF', light: '#DBEAFE', dark: '#1E3A5F' },
+                        smart: { DEFAULT: '#059669', light: '#D1FAE5', dark: '#065F46' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .pulse-glow {
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 5px rgba(5, 150, 105, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(5, 150, 105, 0.6); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+            animation: slideUp 0.6s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: skeleton 1.5s ease-in-out infinite;
+        }
+        @keyframes skeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .winner-badge {
+            animation: bounce 1s ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        textarea:focus { box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3); }
+
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-gray-100">
+
+    <!-- ══════════════ HEADER ══════════════ -->
+    <header class="border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-700 flex items-center justify-center text-xl">
+                    🍽️
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">RecetaSmart <span class="text-emerald-400">RD</span></h1>
+                    <p class="text-xs text-gray-400">Comparador inteligente de precios</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+                <span class="hidden sm:inline">Jumbo</span>
+                <span class="text-jumbo font-bold">●</span>
+                <span class="text-gray-600">vs</span>
+                <span class="text-sirena font-bold">●</span>
+                <span class="hidden sm:inline">La Sirena</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
+        <!-- ══════════════ INPUT SECTION ══════════════ -->
+        <section class="mb-10 fade-in">
+            <div class="card-glass rounded-2xl p-6 sm:p-8">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Textarea -->
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            📝 Pega tu receta o lista de platos
+                        </label>
+                        <textarea
+                            id="recipeInput"
+                            rows="6"
+                            placeholder="Ejemplo: Mangú con los tres golpes&#10;&#10;O pega una receta completa:&#10;- 3 plátanos verdes&#10;- 1/2 lb de salami&#10;- 4 huevos&#10;- 1 cebolla roja&#10;- 2 cdas de aceite&#10;- Queso de freír"
+                            class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:border-emerald-500 transition"
+                        ></textarea>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="lg:w-64 flex flex-col gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                📍 Sucursal / Ciudad
+                            </label>
+                            <select
+                                id="sucursalSelect"
+                                class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-gray-100 focus:outline-none focus:border-emerald-500 transition"
+                            >
+                                <option value="La Vega">La Vega</option>
+                                <option value="Santo Domingo">Santo Domingo</option>
+                                <option value="Santiago">Santiago</option>
+                                <option value="Punta Cana">Punta Cana</option>
+                                <option value="San Pedro de Macorís">San Pedro de Macorís</option>
+                                <option value="Puerto Plata">Puerto Plata</option>
+                            </select>
+                        </div>
+
+                        <button
+                            id="compareBtn"
+                            onclick="handleCompare()"
+                            class="mt-auto w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-emerald-500/25 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span id="btnIcon">🔍</span>
+                            <span id="btnText">Comparar Precios</span>
+                        </button>
+
+                        <p class="text-xs text-gray-500 text-center">
+                            Powered by Gemini AI · Datos en tiempo real
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════ LOADING STATE ══════════════ -->
+        <section id="loadingSection" class="hidden mb-10">
+            <div class="card-glass rounded-2xl p-8 text-center">
+                <div class="inline-flex items-center gap-3 mb-4">
+                    <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-lg font-medium text-emerald-400" id="loadingText">Analizando receta con IA...</span>
+                </div>
+                <div class="max-w-md mx-auto space-y-3 mt-6">
+                    <div class="skeleton h-4 rounded-full"></div>
+                    <div class="skeleton h-4 rounded-full w-3/4"></div>
+                    <div class="skeleton h-4 rounded-full w-1/2"></div>
+                </div>
+                <div class="flex justify-center gap-6 mt-8 text-sm text-gray-500">
+                    <span id="step1" class="flex items-center gap-1">
+                        <span class="text-yellow-500">⏳</span> Extrayendo ingredientes
+                    </span>
+                    <span id="step2" class="flex items-center gap-1 opacity-40">
+                        <span>🔍</span> Buscando en tiendas
+                    </span>
+                    <span id="step3" class="flex items-center gap-1 opacity-40">
+                        <span>🧮</span> Calculando precios
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════ RESULTS ══════════════ -->
+        <section id="resultsSection" class="hidden">
+
+            <!-- ── Tarjetas de Totales ── -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" id="totalCards">
+                <!-- Jumbo Total -->
+                <div id="cardJumbo" class="card-glass rounded-2xl p-6 border-l-4 border-jumbo slide-up">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-jumbo/20 flex items-center justify-center text-jumbo font-bold text-sm">J</div>
+                            <span class="font-semibold text-gray-200">100% Jumbo</span>
+                        </div>
+                        <span id="jumboWinner" class="hidden text-xs bg-jumbo/20 text-jumbo px-2 py-1 rounded-full font-medium winner-badge">🏆 Más barato</span>
+                    </div>
+                    <p class="text-3xl font-bold text-white" id="totalJumbo">RD$ 0.00</p>
+                    <p class="text-sm text-gray-400 mt-1" id="jumboSubtext"></p>
+                </div>
+
+                <!-- Sirena Total -->
+                <div id="cardSirena" class="card-glass rounded-2xl p-6 border-l-4 border-sirena slide-up" style="animation-delay: 0.1s">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-sirena/20 flex items-center justify-center text-sirena font-bold text-sm">S</div>
+                            <span class="font-semibold text-gray-200">100% La Sirena</span>
+                        </div>
+                        <span id="sirenaWinner" class="hidden text-xs bg-sirena/20 text-sirena px-2 py-1 rounded-full font-medium winner-badge">🏆 Más barato</span>
+                    </div>
+                    <p class="text-3xl font-bold text-white" id="totalSirena">RD$ 0.00</p>
+                    <p class="text-sm text-gray-400 mt-1" id="sirenaSubtext"></p>
+                </div>
+
+                <!-- Mixed Total -->
+                <div id="cardMixed" class="card-glass rounded-2xl p-6 border-l-4 border-smart pulse-glow slide-up" style="animation-delay: 0.2s">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-smart/20 flex items-center justify-center text-smart font-bold text-sm">🧠</div>
+                            <span class="font-semibold text-gray-200">Compra Mixta</span>
+                        </div>
+                        <span id="mixedWinner" class="hidden text-xs bg-smart/20 text-smart px-2 py-1 rounded-full font-medium winner-badge">🏆 Mejor opción</span>
+                    </div>
+                    <p class="text-3xl font-bold text-emerald-400" id="totalMixed">RD$ 0.00</p>
+                    <p class="text-sm text-gray-400 mt-1" id="mixedSubtext"></p>
+                </div>
+            </div>
+
+            <!-- ── Recomendación ── -->
+            <div id="recommendationBanner" class="card-glass rounded-2xl p-5 mb-8 border border-emerald-500/30 bg-emerald-500/5 fade-in">
+                <p class="text-center text-lg font-medium" id="recommendationText"></p>
+            </div>
+
+            <!-- ── Tabla Comparativa ── -->
+            <div class="card-glass rounded-2xl overflow-hidden mb-8 fade-in">
+                <div class="p-5 border-b border-white/10 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        📊 Comparación por Ingrediente
+                    </h2>
+                    <span class="text-sm text-gray-400" id="ingredientCount"></span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
+                                <th class="px-5 py-3 text-left font-medium">Ingrediente</th>
+                                <th class="px-5 py-3 text-left font-medium">Cantidad</th>
+                                <th class="px-5 py-3 text-left font-medium">
+                                    <span class="text-jumbo">●</span> Jumbo
+                                </th>
+                                <th class="px-5 py-3 text-right font-medium">Precio Jumbo</th>
+                                <th class="px-5 py-3 text-left font-medium">
+                                    <span class="text-sirena">●</span> La Sirena
+                                </th>
+                                <th class="px-5 py-3 text-right font-medium">Precio Sirena</th>
+                                <th class="px-5 py-3 text-center font-medium">Mejor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparisonTable" class="divide-y divide-white/5">
+                            <!-- Rows inserted by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ══════════════ ERROR STATE ══════════════ -->
+        <section id="errorSection" class="hidden mb-10">
+            <div class="card-glass rounded-2xl p-8 text-center border border-red-500/30">
+                <span class="text-4xl mb-4 block">⚠️</span>
+                <h3 class="text-lg font-semibold text-red-400 mb-2">Error</h3>
+                <p class="text-gray-400" id="errorText"></p>
+                <button onclick="hideError()" class="mt-4 text-sm text-emerald-400 hover:underline">Intentar de nuevo</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- ══════════════ FOOTER ══════════════ -->
+    <footer class="border-t border-white/5 mt-16 py-6 text-center text-xs text-gray-600">
+        <p>RecetaSmart RD © 2026 · Los precios se obtienen en tiempo real de jumbo.com.do y sirena.do</p>
+        <p class="mt-1">Los precios pueden variar según disponibilidad y sucursal.</p>
+    </footer>
+
+    <!-- ══════════════ JAVASCRIPT ══════════════ -->
+    <script>
+    const API_URL = '/api/compare';
+
+    // ── State ──────────────────────────────────────────────────
+    let isLoading = false;
+
+    // ── DOM Elements ───────────────────────────────────────────
+    const $recipe   = document.getElementById('recipeInput');
+    const $sucursal = document.getElementById('sucursalSelect');
+    const $btn      = document.getElementById('compareBtn');
+    const $btnIcon  = document.getElementById('btnIcon');
+    const $btnText  = document.getElementById('btnText');
+
+    const $loading  = document.getElementById('loadingSection');
+    const $results  = document.getElementById('resultsSection');
+    const $error    = document.getElementById('errorSection');
+
+    // ── Helpers ────────────────────────────────────────────────
+    function fmt(n) {
+        return 'RD$ ' + Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function setLoading(state) {
+        isLoading = state;
+        $btn.disabled = state;
+        $btnIcon.textContent = state ? '' : '🔍';
+        $btnText.textContent = state ? 'Analizando...' : 'Comparar Precios';
+        if (state) {
+            $btnIcon.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>';
+        }
+        $loading.classList.toggle('hidden', !state);
+        $results.classList.add('hidden');
+        $error.classList.add('hidden');
+    }
+
+    function updateLoadingSteps(step) {
+        const steps = [
+            document.getElementById('step1'),
+            document.getElementById('step2'),
+            document.getElementById('step3'),
+        ];
+        const labels = [
+            '⏳ Extrayendo ingredientes',
+            '⏳ Buscando en tiendas',
+            '⏳ Calculando precios',
+        ];
+        const doneLabels = [
+            '✅ Ingredientes listos',
+            '✅ Productos encontrados',
+            '✅ Precios calculados',
+        ];
+        const loadingTexts = [
+            'Analizando receta con IA...',
+            'Buscando productos en Jumbo y La Sirena...',
+            'Calculando la mejor combinación...',
+        ];
+
+        document.getElementById('loadingText').textContent = loadingTexts[step] || loadingTexts[0];
+
+        steps.forEach((s, i) => {
+            if (i < step) {
+                s.innerHTML = `<span class="text-green-500">✅</span> ${doneLabels[i].replace('✅ ', '')}`;
+                s.classList.remove('opacity-40');
+            } else if (i === step) {
+                s.innerHTML = `<span class="text-yellow-500">⏳</span> ${labels[i].replace('⏳ ', '')}`;
+                s.classList.remove('opacity-40');
+            } else {
+                s.classList.add('opacity-40');
+            }
+        });
+    }
+
+    function showError(msg) {
+        $error.classList.remove('hidden');
+        document.getElementById('errorText').textContent = msg;
+    }
+
+    function hideError() {
+        $error.classList.add('hidden');
+    }
+
+    // ── Render Results ─────────────────────────────────────────
+    function renderResults(data) {
+        $results.classList.remove('hidden');
+
+        // Totales
+        document.getElementById('totalJumbo').textContent  = fmt(data.total_jumbo);
+        document.getElementById('totalSirena').textContent = fmt(data.total_sirena);
+        document.getElementById('totalMixed').textContent  = fmt(data.total_mixed);
+
+        // Winner badges
+        const $jw = document.getElementById('jumboWinner');
+        const $sw = document.getElementById('sirenaWinner');
+        const $mw = document.getElementById('mixedWinner');
+        $jw.classList.add('hidden');
+        $sw.classList.add('hidden');
+        $mw.classList.add('hidden');
+
+        const mins = [data.total_jumbo, data.total_sirena, data.total_mixed].filter(v => v > 0);
+        const minVal = Math.min(...mins);
+
+        if (data.total_jumbo > 0 && data.total_jumbo === minVal) $jw.classList.remove('hidden');
+        if (data.total_sirena > 0 && data.total_sirena === minVal) $sw.classList.remove('hidden');
+        if (data.total_mixed > 0 && data.total_mixed <= minVal) $mw.classList.remove('hidden');
+
+        // Subtexts
+        if (data.total_jumbo > 0 && data.savings_vs_jumbo > 0)
+            document.getElementById('jumboSubtext').textContent = `Pagarías ${fmt(data.savings_vs_jumbo)} más que la compra mixta`;
+        if (data.total_sirena > 0 && data.savings_vs_sirena > 0)
+            document.getElementById('sirenaSubtext').textContent = `Pagarías ${fmt(data.savings_vs_sirena)} más que la compra mixta`;
+        if (data.total_mixed > 0) {
+            const totalSaved = Math.max(data.savings_vs_jumbo, data.savings_vs_sirena);
+            document.getElementById('mixedSubtext').textContent = totalSaved > 0
+                ? `Ahorras hasta ${fmt(totalSaved)} combinando tiendas`
+                : 'Mejor precio combinando ambas tiendas';
+        }
+
+        // Recommendation
+        document.getElementById('recommendationText').textContent = data.recommendation || '';
+
+        // Ingredient count
+        document.getElementById('ingredientCount').textContent = `${data.ingredients.length} ingrediente${data.ingredients.length !== 1 ? 's' : ''}`;
+
+        // Table
+        const tbody = document.getElementById('comparisonTable');
+        tbody.innerHTML = '';
+
+        data.ingredients.forEach((comp, idx) => {
+            const ing     = comp.ingredient;
+            const jumbo   = comp.best_jumbo;
+            const sirena  = comp.best_sirena;
+            const winner  = comp.cheapest_store;
+
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-white/5 transition-colors fade-in';
+            row.style.animationDelay = `${idx * 0.05}s`;
+
+            const winnerBadge = winner === 'jumbo'
+                ? '<span class="inline-block bg-jumbo/20 text-jumbo text-xs px-2 py-0.5 rounded-full font-medium">Jumbo</span>'
+                : winner === 'sirena'
+                ? '<span class="inline-block bg-sirena/20 text-sirena text-xs px-2 py-0.5 rounded-full font-medium">Sirena</span>'
+                : winner === 'empate'
+                ? '<span class="inline-block bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full font-medium">Empate</span>'
+                : '<span class="text-gray-600 text-xs">—</span>';
+
+            const jumboName  = jumbo  ? escHtml(jumbo.name)  : '<span class="text-gray-600 italic">No encontrado</span>';
+            const sirenaName = sirena ? escHtml(sirena.name) : '<span class="text-gray-600 italic">No encontrado</span>';
+
+            const jumboPrice  = jumbo  ? fmt(jumbo.price)  : '—';
+            const sirenaPrice = sirena ? fmt(sirena.price) : '—';
+
+            const jPriceClass = winner === 'jumbo'  ? 'text-green-400 font-semibold' : 'text-gray-300';
+            const sPriceClass = winner === 'sirena' ? 'text-green-400 font-semibold' : 'text-gray-300';
+
+            row.innerHTML = `
+                <td class="px-5 py-4 font-medium text-gray-100">${escHtml(ing.name)}</td>
+                <td class="px-5 py-4 text-gray-400">${escHtml(ing.quantity)}</td>
+                <td class="px-5 py-4 text-gray-300 max-w-[200px] truncate" title="${jumbo ? escAttr(jumbo.name) : ''}">${jumboName}</td>
+                <td class="px-5 py-4 text-right ${jPriceClass}">${jumboPrice}</td>
+                <td class="px-5 py-4 text-gray-300 max-w-[200px] truncate" title="${sirena ? escAttr(sirena.name) : ''}">${sirenaName}</td>
+                <td class="px-5 py-4 text-right ${sPriceClass}">${sirenaPrice}</td>
+                <td class="px-5 py-4 text-center">${winnerBadge}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
+    function escAttr(s) {
+        return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ── Main Handler ───────────────────────────────────────────
+    async function handleCompare() {
+        if (isLoading) return;
+
+        const text = $recipe.value.trim();
+        if (!text) {
+            $recipe.focus();
+            $recipe.classList.add('border-red-500');
+            setTimeout(() => $recipe.classList.remove('border-red-500'), 2000);
+            return;
+        }
+
+        setLoading(true);
+        updateLoadingSteps(0);
+
+        try {
+            // Simular pasos de progreso
+            const stepTimer1 = setTimeout(() => updateLoadingSteps(1), 2000);
+            const stepTimer2 = setTimeout(() => updateLoadingSteps(2), 6000);
+
+            const resp = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipe_text: text,
+                    sucursal: $sucursal.value,
+                }),
+            });
+
+            clearTimeout(stepTimer1);
+            clearTimeout(stepTimer2);
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.detail || `Error del servidor (${resp.status})`);
+            }
+
+            const data = await resp.json();
+            setLoading(false);
+            renderResults(data);
+
+            // Scroll suave a resultados
+            $results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        } catch (err) {
+            setLoading(false);
+            showError(err.message || 'Error inesperado. Verifica tu conexión e intenta de nuevo.');
+        }
+    }
+
+    // ── Keyboard shortcut ──────────────────────────────────────
+    $recipe.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            handleCompare();
+        }
+    });
+    </script>
+</body>
+</html>
