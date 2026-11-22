@@ -48,6 +48,7 @@ app = FastAPI(
     description="Compara precios de ingredientes de recetas entre Jumbo y La Sirena en RD",
     version="1.0.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 # CORS
@@ -62,12 +63,14 @@ app.add_middleware(
 
 # ── Endpoints API ────────────────────────────────────────────────
 @app.post("/api/compare", response_model=ComparisonResult)
+@app.post("/compare", response_model=ComparisonResult)
+@app.post("/", response_model=ComparisonResult)
 async def api_compare(request: RecipeRequest):
     """Recibe una receta, extrae ingredientes y compara precios."""
     if not settings.GEMINI_API_KEY:
         raise HTTPException(
             status_code=500,
-            detail="GEMINI_API_KEY no configurada. Copia .env.example a .env y agrega tu clave.",
+            detail="GEMINI_API_KEY no configurada en las variables de entorno de Vercel.",
         )
 
     try:
@@ -82,6 +85,7 @@ async def api_compare(request: RecipeRequest):
 
 
 @app.get("/api/health")
+@app.get("/health")
 async def health():
     """Health check."""
     return {
