@@ -60,24 +60,30 @@ _EXTRACT_SCHEMA = {
 async def extract_ingredients(recipe_text: str) -> list[dict[str, str]]:
     """Extrae ingredientes del texto de una receta usando Gemini."""
     client = _get_client()
+    models_to_try = list(dict.fromkeys([settings.GEMINI_MODEL, "gemini-3.5-flash", "gemini-3.1-flash-lite"]))
+    last_err = None
 
-    response = client.models.generate_content(
-        model=settings.GEMINI_MODEL,
-        contents=f"Analiza esta receta y extrae los ingredientes:\n\n{recipe_text}",
-        config=types.GenerateContentConfig(
-            system_instruction=_EXTRACT_SYSTEM,
-            response_mime_type="application/json",
-            response_schema=_EXTRACT_SCHEMA,
-            temperature=0.2,
-        ),
-    )
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=f"Analiza esta receta y extrae los ingredientes:\n\n{recipe_text}",
+                config=types.GenerateContentConfig(
+                    system_instruction=_EXTRACT_SYSTEM,
+                    response_mime_type="application/json",
+                    response_schema=_EXTRACT_SCHEMA,
+                    temperature=0.2,
+                ),
+            )
+            data = json.loads(response.text)
+            return data.get("ingredients", [])
+        except Exception as e:
+            logger.warning("Error en extract_ingredients con %s: %s", model_name, e)
+            last_err = e
 
-    try:
-        data = json.loads(response.text)
-        return data.get("ingredients", [])
-    except (json.JSONDecodeError, AttributeError) as e:
-        logger.error("Error parseando respuesta de Gemini (ingredientes): %s", e)
-        return []
+    if last_err:
+        raise last_err
+    return []
 
 
 # ── 2. Matching inteligente de productos ─────────────────────────
@@ -135,29 +141,30 @@ Productos disponibles:
 Selecciona el mejor match."""
 
     client = _get_client()
+    models_to_try = list(dict.fromkeys([settings.GEMINI_MODEL, "gemini-3.5-flash", "gemini-3.1-flash-lite"]))
 
-    try:
-        response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=_MATCH_SYSTEM,
-                response_mime_type="application/json",
-                response_schema=_MATCH_SCHEMA,
-                temperature=0.1,
-            ),
-        )
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=_MATCH_SYSTEM,
+                    response_mime_type="application/json",
+                    response_schema=_MATCH_SCHEMA,
+                    temperature=0.1,
+                ),
+            )
 
-        result = json.loads(response.text)
-        idx = result.get("match_index", -1)
-        # Validar índice
-        if idx < 0 or idx >= len(products):
-            result["match_index"] = -1
-        return result
-    except Exception as e:
-        logger.error("Error en matching Gemini: %s", e)
-        # Fallback: seleccionar el más barato
-        if products:
-            cheapest = min(range(len(products)), key=lambda i: products[i].get("price", float("inf")))
-            return {"match_index": cheapest, "confidence": 0.5, "reasoning": "Fallback: producto más barato"}
-        return {"match_index": -1, "confidence": 0.0, "reasoning": "Error en IA"}
+            result = json.loads(response.text)
+            idx = result.get("match_index", -1)
+            # Validar índice
+            if idx < 0 or idx >= len(products):
+                result["match_index"] = -1
+            return result
+        except Exception as e:
+            logger.warning("Error en match_best_product con %s: %s", model_name, e)
+
+    # Fallback: seleccionar el más barato si la IA no responde
+    cheapest = min(range(len(products)), key=lambda i: products[i].get("price", float("inf")))
+    return {"match_index": cheapest, "confidence": 0.5, "reasoning": "Fallback: producto más barato"}
