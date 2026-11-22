@@ -6,6 +6,7 @@ import abc
 import asyncio
 import logging
 import random
+import re
 from typing import Any
 
 import httpx
@@ -21,14 +22,25 @@ _USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:132.0) Gecko/20100101 Firefox/132.0",
 ]
 
+# Palabras secundarias que a veces impiden que el buscador del supermercado encuentre el producto
+_QUALIFIERS = {
+    "fresco", "fresca", "frescos", "frescas",
+    "molido", "molida", "molidos", "molidas",
+    "entero", "entera", "picado", "picada",
+    "maduro", "madura", "maduros", "maduras",
+    "verde", "verdes", "rojo", "roja", "blanco", "blanca",
+    "de", "del", "al", "para", "con", "en", "o", "u",
+    "extra", "virgen", "gran", "puro", "pura",
+}
+
 
 class BaseScraper(abc.ABC):
-    """Clase base con lógica compartida: reintentos, User-Agent rotation, fallback a Playwright."""
+    """Clase base con lógica compartida: reintentos, User-Agent rotation, términos alternativos."""
 
     STORE_NAME: str = ""  # 'jumbo' o 'sirena'
     BASE_URL: str = ""
-    MAX_RETRIES: int = 3
-    RETRY_DELAY: float = 1.5
+    MAX_RETRIES: int = 2
+    RETRY_DELAY: float = 1.0
 
     def _random_ua(self) -> str:
         return random.choice(_USER_AGENTS)
@@ -41,52 +53,71 @@ class BaseScraper(abc.ABC):
             "Referer": self.BASE_URL,
         }
 
-    # ── Método principal con reintentos ───────────────────────────
+    def _generate_fallback_queries(self, query: str) -> list[str]:
+        """Genera variaciones simplificadas de la búsqueda si la principal falla."""
+        words = [w.strip() for w in re.split(r"[\s,\-/]+", query.strip().lower()) if w.strip()]
+        if len(words) <= 1:
+            return []
+
+        fallbacks: list[str] = []
+
+        # 1. Quitar calificadores comunes (ej: "albahaca fresca" -> "albahaca")
+        essential_words = [w for w in words if w not in _QUALIFIERS]
+        if essential_words and len(essential_words) < len(words):
+            fallbacks.append(" ".join(essential_words))
+
+        # 2. Si son 2 palabras como "pasta espagueti", probar la última y la primera
+        if len(words) >= 2:
+            if words[-1] not in fallbacks and words[-1] not in _QUALIFIERS:
+                fallbacks.append(words[-1])
+            if words[0] not in fallbacks and words[0] not in _QUALIFIERS:
+                fallbacks.append(words[0])
+
+        return fallbacks
+
+    # ── Método principal con reintentos y fallback inteligente ────
     async def search(self, query: str) -> list[dict[str, Any]]:
-        """Busca productos con reintentos. Intenta httpx primero, luego Playwright."""
-        last_error: Exception | None = None
+        """Busca productos. Si el término original no da resultados, prueba variaciones simplificadas."""
+        queries_to_try = [query] + self._generate_fallback_queries(query)
 
-        for attempt in range(1, self.MAX_RETRIES + 1):
-            try:
-                results = await self._search_api(query)
-                if results:
-                    logger.info(
-                        "%s: httpx OK para '%s' (intento %d, %d resultados)",
-                        self.STORE_NAME, query, attempt, len(results),
+        for q in queries_to_try:
+            for attempt in range(1, self.MAX_RETRIES + 1):
+                try:
+                    results = await self._search_api(q)
+                    if results:
+                        logger.info(
+                            "%s: Encontrados %d productos para '%s'%s",
+                            self.STORE_NAME, len(results), q,
+                            f" (fallback de '{query}')" if q != query else "",
+                        )
+                        return results
+                except Exception as exc:
+                    logger.warning(
+                        "%s: Error buscando '%s' (intento %d): %s",
+                        self.STORE_NAME, q, attempt, exc,
                     )
-                    return results
-            except Exception as exc:
-                last_error = exc
-                logger.warning(
-                    "%s: httpx falló para '%s' (intento %d): %s",
-                    self.STORE_NAME, query, attempt, exc,
-                )
-                if attempt < self.MAX_RETRIES:
-                    await asyncio.sleep(self.RETRY_DELAY * attempt)
+                    if attempt < self.MAX_RETRIES:
+                        await asyncio.sleep(self.RETRY_DELAY)
 
-        # Fallback a Playwright
-        logger.info("%s: Intentando fallback Playwright para '%s'", self.STORE_NAME, query)
+        # Fallback a Playwright (si estuviese disponible)
         try:
             results = await self._search_playwright(query)
             if results:
                 return results
-        except Exception as pw_exc:
-            logger.error(
-                "%s: Playwright también falló para '%s': %s",
-                self.STORE_NAME, query, pw_exc,
-            )
+        except Exception:
+            pass
 
-        logger.warning("%s: Sin resultados para '%s'", self.STORE_NAME, query)
+        logger.warning("%s: Sin resultados para '%s' (ni con términos alternativos)", self.STORE_NAME, query)
         return []
 
     # ── Métodos abstractos que cada scraper implementa ────────────
     @abc.abstractmethod
     async def _search_api(self, query: str) -> list[dict[str, Any]]:
-        """Búsqueda via httpx (API interna / endpoint de búsqueda)."""
+        """Búsqueda via HTTP API."""
         ...
 
     async def _search_playwright(self, query: str) -> list[dict[str, Any]]:
-        """Fallback con Playwright headless. Implementar en subclase si aplica."""
+        """Fallback con Playwright opcional."""
         return []
 
     # ── Helpers ───────────────────────────────────────────────────
