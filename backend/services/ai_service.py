@@ -54,6 +54,8 @@ Para cada ingrediente genera:
 Reglas de exactitud:
 - Usa la forma fresca/natural salvo que la receta pida otra cosa explícitamente ("ajo en polvo", "habichuelas enlatadas", "maíz en lata").
 - Distingue variedades: "plátano verde" ≠ "plátano maduro", "cebolla roja" ≠ "cebolla blanca", "aceite de oliva" ≠ "aceite de soya", "leche evaporada" ≠ "leche entera".
+- Nombres usados en las tiendas dominicanas: el pimiento morrón se vende como "aji morron" (search_term "aji morron", required_words ["aji", "morron"]);
+  el ají cubanela como "aji cubanela"; el cilantro también como "cilantrico"; los frijoles como "habichuelas".
 - "aceite" sin especificar = aceite vegetal de cocinar (soya/canola). "sal" = sal de mesa. "sazón" = sazón líquido o en polvo de cocina."""
 
 _CATEGORIES = [

@@ -13,7 +13,6 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
-from difflib import SequenceMatcher
 from typing import Any
 
 # ── Normalización de texto ───────────────────────────────────────
@@ -31,14 +30,17 @@ def fold(text: str) -> str:
 
 
 def stem(word: str) -> str:
-    """Singularización simple en español (suficiente para nombres de productos)."""
+    """Singularización simple en español (suficiente para nombres de productos).
+
+    tomates -> tomate, limones -> limon, frijoles -> frijol, ajies -> aji, cebollas -> cebolla.
+    """
     w = word
-    if len(w) > 4 and w.endswith("ces"):
-        return w[:-3] + "z"          # nueces -> nuez
-    if len(w) > 4 and w.endswith("es") and w[-3] not in "aeiou":
-        return w[:-2]                # limones -> limon, ajies -> (se queda)
+    if len(w) > 4 and w.endswith("ies"):
+        return w[:-2]                # ajies -> aji
+    if len(w) > 4 and w.endswith("es") and w[-3] in "lnrdjy":
+        return w[:-2]                # limones -> limon, frijoles -> frijol
     if len(w) > 3 and w.endswith("s"):
-        return w[:-1]                # cebollas -> cebolla
+        return w[:-1]                # tomates -> tomate, cebollas -> cebolla
     return w
 
 
@@ -48,11 +50,12 @@ _SYNONYMS = {
     "spagetti": "espagueti", "espaghetti": "espagueti",
     "fetuccini": "fettuccine", "fettuccini": "fettuccine", "fetuccine": "fettuccine",
     "culantro": "cilantro", "cilantrico": "cilantro", "cilantrillo": "cilantro",
-    "aji": "aji", "pimiento": "pimiento", "morron": "morron",
+    "pimiento": "aji", "morrone": "morron",   # en RD el pimiento morrón se vende como "Ají Morrón"
     "frijol": "habichuela", "frijole": "habichuela", "poroto": "habichuela",
     "yogurt": "yogur", "ketchup": "ketchup", "catsup": "ketchup",
     "guandule": "guandul", "gandul": "guandul", "gandule": "guandul",
     "batata": "batata", "camote": "batata", "zanahoria": "zanahoria",
+    "nuece": "nuez", "maice": "maiz", "aceitune": "aceituna",
     "lt": "l", "litro": "l", "onza": "oz", "onz": "oz", "gr": "g", "gramo": "g", "libra": "lb",
 }
 
@@ -65,7 +68,7 @@ _VARIANT_WORDS = {stem(w) for w in (
     "integral", "light", "diet", "organico", "organica", "gluten", "descremada", "descremado",
     "deslactosada", "deslactosado", "saborizada", "saborizado", "sabor", "proteina", "quinoa",
     "picante", "ahumado", "ahumada", "albondiga", "albondigas", "precocida", "precocido",
-    "instantaneo", "instantanea", "parboiled", "keto", "vegana", "vegano", "bio", "integrale",
+    "instantaneo", "instantanea", "parboiled", "keto", "vegana", "vegano", "bio", "integrale", "pelado", "pelada",
 )}
 
 
@@ -82,15 +85,13 @@ def tokens(text: str) -> list[str]:
 
 
 def _has_word(word: str, name_tokens: set[str]) -> bool:
-    """Coincidencia exacta o aproximada (errores de ortografía en palabras largas)."""
-    if word in name_tokens:
-        return True
-    if len(word) < 6:
-        return False
-    return any(
-        len(t) >= 5 and t[0] == word[0] and SequenceMatcher(None, word, t).ratio() >= 0.86
-        for t in name_tokens
-    )
+    """Coincidencia EXACTA del token normalizado.
+
+    No se usa coincidencia aproximada a propósito: 'pimiento' ~ 'pimienta' o
+    'naranja' ~ 'naranjada' son productos distintos. Las variantes ortográficas
+    reales se cubren con _SYNONYMS.
+    """
+    return word in name_tokens
 
 
 def _word_list(values: Any) -> list[str]:
@@ -108,7 +109,7 @@ def _word_list(values: Any) -> list[str]:
 # Fragmentos de categoría (normalizados) que nunca son ingredientes de cocina
 _NON_FOOD_CATEGORIES = (
     "cuidado personal", "belleza", "mascota", "bebe", "hogar", "ferreteria",
-    "limpieza", "farmacia", "salud", "higiene", "papel", "desechable", "cocina y mesa",
+    "limpieza", "farmacia", "salud y belleza", "medicamento", "higiene", "papel", "desechable", "cocina y mesa",
     "electro", "jugueteria", "juguete", "ropa", "textil", "automotr", "vehiculo",
     "jardineria", "ferreteria", "libreria", "oficina", "deporte", "cuidado del hogar",
     "lavanderia", "insecticida", "cuidado capilar", "maquillaje", "perfume",
@@ -144,6 +145,8 @@ _PROCESSED_FORMS = {
     "cereal", "barra", "gomita", "caramelo", "bizcocho", "aro", "aros",
     "planta", "plantas", "base", "clara", "yema", "pasteurizado", "pasteurizada",
     "liquido", "liquida", "codorniz", "relleno", "rellena", "marinado", "marinada",
+    "triturado", "triturada", "troceado", "troceada", "seco", "seca", "asado", "asada",
+    "rodaja", "semilla",
 }
 _PROCESSED_FORMS_STEMMED = {stem(w) for w in _PROCESSED_FORMS}
 
@@ -216,6 +219,12 @@ def evaluate_candidate(ingredient: dict[str, Any], product: dict[str, Any]) -> t
         return False, 0.0, "sin precio"
     if category and not is_food_category(category):
         return False, 0.0, f"categoría no alimenticia ({category})"
+    # Ingrediente fresco → no vale la versión en conserva/enlatada
+    if (
+        ingredient.get("category", "") in _FRESH_CATEGORIES
+        and re.search(r"conserva|enlatado", fold(category))
+    ):
+        return False, 0.0, f"conserva para ingrediente fresco ({category})"
 
     ingredient_text = " ".join(
         [ingredient.get("name", ""), ingredient.get("search_term", "")]

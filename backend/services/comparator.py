@@ -269,23 +269,47 @@ async def compare_recipe(recipe_text: str, sucursal: str = "La Vega") -> Compari
     savings_vs_jumbo = total_jumbo - total_mixed if total_jumbo > 0 else 0
     savings_vs_sirena = total_sirena - total_mixed if total_sirena > 0 else 0
 
+    # Para que la comparación sea justa, la recomendación se basa SOLO en los
+    # ingredientes encontrados en ambas tiendas (si no, la tienda que encontró
+    # menos productos parecería más barata).
+    common = [c for c in comparisons if c.best_jumbo and c.best_sirena]
+    cmp_jumbo = sum(c.best_jumbo.price for c in common)
+    cmp_sirena = sum(c.best_sirena.price for c in common)
+    cmp_mixed = sum(min(c.best_jumbo.price, c.best_sirena.price) for c in common)
+    missing_jumbo = sum(1 for c in comparisons if not c.best_jumbo)
+    missing_sirena = sum(1 for c in comparisons if not c.best_sirena)
+
+    notes = []
+    if missing_jumbo:
+        notes.append(f"{missing_jumbo} producto{'s' if missing_jumbo != 1 else ''} no encontrado{'s' if missing_jumbo != 1 else ''} en Jumbo")
+    if missing_sirena:
+        notes.append(f"{missing_sirena} producto{'s' if missing_sirena != 1 else ''} no encontrado{'s' if missing_sirena != 1 else ''} en La Sirena")
+    scope = " (comparando solo los productos disponibles en ambas tiendas)" if notes else ""
+    note_text = f" ⚠️ {'; '.join(notes)}." if notes else ""
+
     # Generar recomendación
     if total_jumbo == 0 and total_sirena == 0:
         recommendation = "No se encontraron productos en ninguna tienda para esta receta."
-    elif total_mixed < total_jumbo and total_mixed < total_sirena:
+    elif not common:
+        only = "Jumbo" if total_jumbo > 0 and total_sirena == 0 else "La Sirena" if total_sirena > 0 and total_jumbo == 0 else ""
         recommendation = (
-            f"🧠 ¡Compra Mixta Inteligente! Ahorras RD${savings_vs_jumbo:,.2f} vs. Jumbo "
-            f"y RD${savings_vs_sirena:,.2f} vs. La Sirena comprando en ambas tiendas."
+            f"No hay productos comunes para comparar entre ambas tiendas.{note_text}"
+            + (f" Solo {only} tiene productos para esta receta." if only else "")
         )
-    elif total_jumbo <= total_sirena:
+    elif cmp_mixed < cmp_jumbo and cmp_mixed < cmp_sirena:
         recommendation = (
-            f"🟢 Jumbo es más económico para esta receta. "
-            f"Ahorras RD${total_sirena - total_jumbo:,.2f} vs. La Sirena."
+            f"🧠 ¡Compra Mixta Inteligente! Ahorras RD${cmp_jumbo - cmp_mixed:,.2f} vs. Jumbo "
+            f"y RD${cmp_sirena - cmp_mixed:,.2f} vs. La Sirena comprando en ambas tiendas{scope}.{note_text}"
+        )
+    elif cmp_jumbo <= cmp_sirena:
+        recommendation = (
+            f"🟢 Jumbo es más económico para esta receta{scope}. "
+            f"Ahorras RD${cmp_sirena - cmp_jumbo:,.2f} vs. La Sirena.{note_text}"
         )
     else:
         recommendation = (
-            f"🔵 La Sirena es más económica para esta receta. "
-            f"Ahorras RD${total_jumbo - total_sirena:,.2f} vs. Jumbo."
+            f"🔵 La Sirena es más económica para esta receta{scope}. "
+            f"Ahorras RD${cmp_jumbo - cmp_sirena:,.2f} vs. Jumbo.{note_text}"
         )
 
     return ComparisonResult(
