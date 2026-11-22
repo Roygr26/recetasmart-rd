@@ -26,7 +26,7 @@ class Settings:
     DB_PATH: str = os.getenv("DB_PATH", _DEFAULT_DB)
 
     # Modelo Gemini
-    GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
 
 settings = Settings()
