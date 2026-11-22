@@ -25,8 +25,8 @@ class Settings:
     _DEFAULT_DB: str = "/tmp/cache.db" if os.getenv("VERCEL") else str(Path(__file__).resolve().parent.parent / "cache.db")
     DB_PATH: str = os.getenv("DB_PATH", _DEFAULT_DB)
 
-    # Modelo Gemini
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    # Modelo Gemini por defecto (Gemini 3.5 Flash Lite con 500 RPD)
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 
 settings = Settings()

@@ -61,7 +61,12 @@ _EXTRACT_SCHEMA = {
 async def extract_ingredients(recipe_text: str) -> list[dict[str, str]]:
     """Extrae ingredientes del texto de una receta usando Gemini."""
     client = _get_client()
-    models_to_try = list(dict.fromkeys([settings.GEMINI_MODEL, "gemini-3.5-flash", "gemini-3.1-flash-lite"]))
+    models_to_try = list(dict.fromkeys([
+        settings.GEMINI_MODEL,
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+    ]))
     last_err = None
 
     for model_name in models_to_try:

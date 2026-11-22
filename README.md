@@ -3,7 +3,7 @@
 **Comparador inteligente de precios de recetas** para supermercados en República Dominicana.
 
 Ingresa una receta en texto libre (o una lista de platos), y la app:
-1. **Extrae los ingredientes** automáticamente con IA (Gemini 3.8 Flash)
+1. **Extrae los ingredientes** automáticamente con IA (Gemini 3.5 Flash Lite)
 2. **Busca precios reales** en [Jumbo](https://jumbo.com.do) y [La Sirena](https://sirena.do)
 3. **Compara y calcula** el costo total en 3 escenarios: 100% Jumbo, 100% La Sirena y **Compra Mixta Inteligente**
 
@@ -89,7 +89,7 @@ recetasmart-rd/
 |------|-----------|
 | **Backend** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2 |
 | **Scraping** | `httpx` (asíncrono) + `playwright` (fallback headless) |
-| **IA** | Google Gemini 3.8 Flash con Structured Outputs |
+| **IA** | Google Gemini 3.5 Flash Lite con Structured Outputs |
 | **Caché** | SQLite vía `aiosqlite` (TTL: 12 horas) |
 | **Frontend** | HTML5, Tailwind CSS (CDN), Vanilla JavaScript |
 
