@@ -38,7 +38,7 @@ class SirenaScraper(BaseScraper):
                     resp = await client.get(
                         f"{base_endpoint}/{encoded}",
                         headers=headers,
-                        params={"_from": 0, "_to": 9},
+                        params={"_from": 0, "_to": 39},
                     )
                     # VTEX responde 200 o 206 (Partial Content)
                     if resp.status_code in (200, 206):
@@ -55,7 +55,7 @@ class SirenaScraper(BaseScraper):
                 resp = await client.get(
                     self._VTEX_ENDPOINTS[0],
                     headers=headers,
-                    params={"ft": query, "_from": 0, "_to": 9},
+                    params={"ft": query, "_from": 0, "_to": 39},
                 )
                 if resp.status_code in (200, 206):
                     data = resp.json()
@@ -69,7 +69,7 @@ class SirenaScraper(BaseScraper):
     def _parse_vtex_products(self, products: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Parsea la respuesta del catalog_system de VTEX de Grupo Ramos / La Sirena."""
         results: list[dict[str, Any]] = []
-        for prod in products[:10]:
+        for prod in products[:40]:
             try:
                 name = prod.get("productName", prod.get("nameComplete", "")).strip()
                 if not name:
@@ -80,6 +80,7 @@ class SirenaScraper(BaseScraper):
                 price = 0.0
                 unit = ""
                 image_url = ""
+                available = True
 
                 if items:
                     item = items[0]
@@ -91,12 +92,18 @@ class SirenaScraper(BaseScraper):
                     if sellers:
                         comm_info = sellers[0].get("commertialOffer", {})
                         price = comm_info.get("Price", 0.0)
+                        available = bool(comm_info.get("IsAvailable", True)) and (
+                            comm_info.get("AvailableQuantity", 1) or 0
+                        ) > 0
                         if not price or price <= 0:
                             price = comm_info.get("ListPrice", 0.0)
 
                     unit = item.get("measurementUnit", "")
                     if item.get("unitMultiplier"):
                         unit = f"{item['unitMultiplier']} {unit}".strip()
+
+                categories = prod.get("categories") or []
+                category = categories[0] if categories else ""
 
                 link = prod.get("link", prod.get("linkText", ""))
                 product_url = f"{self.BASE_URL}/{link}" if link and not link.startswith("http") else link or self.BASE_URL
@@ -110,7 +117,8 @@ class SirenaScraper(BaseScraper):
                         "unit": unit,
                         "image_url": image_url,
                         "product_url": product_url,
-                        "available": True,
+                        "available": available,
+                        "category": category,
                     })
             except Exception as e:
                 logger.debug("Error parseando producto Sirena: %s", e)

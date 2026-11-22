@@ -71,12 +71,13 @@ recetasmart-rd/
 │   ├── database.py              # Caché SQLite (12h TTL)
 │   ├── models.py                # Esquemas Pydantic v2
 │   ├── services/
-│   │   ├── ai_service.py        # Gemini: extracción de ingredientes + matching
+│   │   ├── ai_service.py        # Gemini: extracción de ingredientes + verificación en lote
+│   │   ├── matcher.py           # Matching estricto de productos (filtros + puntuación)
 │   │   └── comparator.py        # Orquestador del flujo completo
 │   └── scrapers/
 │       ├── base.py              # Clase base con reintentos + User-Agent rotation
-│       ├── jumbo.py             # Scraper para jumbo.com.do (VTEX API)
-│       └── sirena.py            # Scraper para sirena.do (Magento API)
+│       ├── jumbo.py             # Scraper para jumbo.com.do (Magento 2 GraphQL)
+│       └── sirena.py            # Scraper para sirena.do (VTEX Catalog API)
 └── frontend/
     └── index.html               # UI dashboard (Tailwind CSS + Vanilla JS)
 ```
@@ -98,10 +99,17 @@ recetasmart-rd/
 ## 🧠 ¿Cómo Funciona?
 
 1. **Entrada**: El usuario pega una receta o lista de platos dominicanos
-2. **Extracción IA**: Gemini analiza el texto y extrae ingredientes con cantidades y términos de búsqueda optimizados
-3. **Búsqueda Paralela**: Para cada ingrediente, se busca en paralelo en Jumbo y La Sirena (con caché de 12h)
-4. **Matching Inteligente**: Gemini selecciona el mejor producto que matchea cada ingrediente
-5. **Comparación**: Se calculan 3 totales y se genera una recomendación
+2. **Extracción IA**: Gemini analiza el texto y extrae cada ingrediente con: término de búsqueda exacto, términos alternativos, palabras obligatorias, palabras excluidas (formas equivocadas), categoría y cantidad en gramos
+3. **Búsqueda Paralela**: Cada ingrediente se busca en Jumbo y La Sirena con su término principal y alternativos (hasta 30-40 resultados por tienda, caché de 12h)
+4. **Matching Estricto** (`matcher.py`), sin gastar cuota de IA:
+   - Descarta productos agotados y no alimenticios (cosméticos, mascotas, hogar...)
+   - Exige que el producto contenga las palabras obligatorias (con tildes, plurales, sinónimos y variantes ortográficas normalizadas: *Spaghetti/Spaguetti/Espaguetis*)
+   - Descarta formas equivocadas: *plátano verde* ≠ *chips de plátano*, *ajo* ≠ *ajo en polvo*, *pollo* ≠ *sandwich de pollo*
+   - Penaliza variedades no pedidas (integral, light, sin gluten) y mezclas (*oliva y girasol*)
+   - Puntúa por coincidencia, categoría, tamaño adecuado a la cantidad necesaria y precio
+   - Si ningún producto corresponde, se marca como **No encontrado** en vez de elegir uno incorrecto
+5. **Verificación IA**: una sola llamada a Gemini revisa los 3 mejores candidatos de cada ingrediente para toda la receta (si falla o no hay cuota, se usa el matching estricto)
+6. **Comparación**: Se calculan 3 totales y se genera una recomendación
 
 ---
 
@@ -112,6 +120,7 @@ recetasmart-rd/
 | `GEMINI_API_KEY` | API Key de Google Gemini | (requerida) |
 | `SUCURSAL_DEFAULT` | Sucursal por defecto | `La Vega` |
 | `CACHE_TTL_HOURS` | Horas de vida del caché | `12` |
+| `AI_VERIFY_MATCHES` | Verificación final de productos con IA (1 llamada extra por receta) | `true` |
 
 ---
 

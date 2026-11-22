@@ -18,6 +18,11 @@ class Ingredient(BaseModel):
     name: str = Field(..., description="Nombre del ingrediente en español")
     quantity: str = Field(..., description="Cantidad con unidad (ej: '500 g', '2 unidades')")
     search_term: str = Field(..., description="Término de búsqueda optimizado para supermercado")
+    alt_terms: list[str] = Field(default_factory=list, description="Términos de búsqueda alternativos")
+    required_words: list[str] = Field(default_factory=list, description="Palabras obligatorias en el producto")
+    excluded_words: list[str] = Field(default_factory=list, description="Palabras que indican producto equivocado")
+    category: str = Field(default="", description="Categoría esperada del producto")
+    quantity_grams: float = Field(default=0.0, ge=0, description="Cantidad necesaria aprox. en g/ml")
 
 
 # ── Producto encontrado en un supermercado ─────────────────────────
@@ -31,6 +36,7 @@ class ProductOption(BaseModel):
     image_url: str = Field(default="", description="URL de la imagen del producto")
     product_url: str = Field(default="", description="URL directa al producto")
     available: bool = Field(default=True, description="Si está disponible")
+    category: str = Field(default="", description="Categoría del producto en la tienda")
 
 
 # ── Comparación por ingrediente ────────────────────────────────────
@@ -42,6 +48,8 @@ class IngredientComparison(BaseModel):
     best_jumbo: ProductOption | None = None
     best_sirena: ProductOption | None = None
     cheapest_store: str = Field(default="", description="jumbo | sirena | empate")
+    jumbo_confidence: float = Field(default=0.0, description="Confianza del match en Jumbo (0-1)")
+    sirena_confidence: float = Field(default=0.0, description="Confianza del match en Sirena (0-1)")
 
 
 # ── Resultado final ───────────────────────────────────────────────

@@ -61,17 +61,12 @@ class BaseScraper(abc.ABC):
 
         fallbacks: list[str] = []
 
-        # 1. Quitar calificadores comunes (ej: "albahaca fresca" -> "albahaca")
+        # Quitar solo calificadores secundarios (ej: "albahaca fresca" -> "albahaca").
+        # NUNCA se parte el término en palabras sueltas: "pasta de tomate" -> "pasta"
+        # traería espaguetis y produciría matches incorrectos.
         essential_words = [w for w in words if w not in _QUALIFIERS]
         if essential_words and len(essential_words) < len(words):
             fallbacks.append(" ".join(essential_words))
-
-        # 2. Si son 2 palabras como "pasta espagueti", probar la última y la primera
-        if len(words) >= 2:
-            if words[-1] not in fallbacks and words[-1] not in _QUALIFIERS:
-                fallbacks.append(words[-1])
-            if words[0] not in fallbacks and words[0] not in _QUALIFIERS:
-                fallbacks.append(words[0])
 
         return fallbacks
 

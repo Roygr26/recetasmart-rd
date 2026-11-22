@@ -28,5 +28,8 @@ class Settings:
     # Modelo Gemini por defecto (Gemini 3.5 Flash Lite con 500 RPD)
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
+    # Verificación final de los productos elegidos con IA (1 sola llamada extra por receta)
+    AI_VERIFY_MATCHES: bool = os.getenv("AI_VERIFY_MATCHES", "true").lower() in ("1", "true", "yes", "si")
+
 
 settings = Settings()

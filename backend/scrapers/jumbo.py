@@ -26,7 +26,7 @@ class JumboScraper(BaseScraper):
         graphql_query = {
             "query": f"""
             {{
-              products(search: "{clean_query}", pageSize: 10) {{
+              products(search: "{clean_query}", pageSize: 30) {{
                 items {{
                   name
                   sku
@@ -45,6 +45,10 @@ class JumboScraper(BaseScraper):
                     url
                   }}
                   url_key
+                  stock_status
+                  categories {{
+                    name
+                  }}
                 }}
               }}
             }}
@@ -115,6 +119,11 @@ class JumboScraper(BaseScraper):
                 url_key = it.get("url_key", "")
                 product_url = f"{self.BASE_URL}/{url_key}.html" if url_key else self.BASE_URL
 
+                categories = it.get("categories") or []
+                category = " / ".join(
+                    c.get("name", "") for c in categories if isinstance(c, dict) and c.get("name")
+                )
+
                 results.append({
                     "store": "jumbo",
                     "name": name,
@@ -123,7 +132,8 @@ class JumboScraper(BaseScraper):
                     "unit": "",
                     "image_url": image_url,
                     "product_url": product_url,
-                    "available": True,
+                    "available": it.get("stock_status", "IN_STOCK") != "OUT_OF_STOCK",
+                    "category": category,
                 })
             except Exception as e:
                 logger.debug("Error parseando producto Jumbo: %s", e)
