@@ -15,39 +15,46 @@ Ingresa una receta en texto libre (o una lista de platos), y la app:
 - Python 3.11 o superior
 - Una API Key de [Google AI Studio](https://aistudio.google.com/apikey) (Gemini)
 
-### Pasos
+### Pasos (Local)
 
 ```bash
-# 1. Clona o navega al directorio del proyecto
+# 1. Clona el repositorio
+git clone https://github.com/Roygr26/recetasmart-rd.git
 cd recetasmart-rd
 
-# 2. Crea un entorno virtual
+# 2. Crea y activa un entorno virtual
 python -m venv venv
 
-# Windows
+# Windows:
 venv\Scripts\activate
-
-# macOS/Linux
+# macOS/Linux:
 source venv/bin/activate
 
 # 3. Instala dependencias
 pip install -r requirements.txt
 
-# 4. (Opcional) Instala Playwright para el fallback de scraping
-playwright install chromium
+# 4. Configura tu API Key
+copy .env.example .env     # En Windows
+# cp .env.example .env     # En macOS/Linux
+# Edita .env y coloca tu GEMINI_API_KEY
 
-# 5. Configura tu API Key
-copy .env.example .env     # Windows
-# cp .env.example .env     # macOS/Linux
-
-# Edita .env y agrega tu GEMINI_API_KEY
-
-# 6. Ejecuta la app
+# 5. Ejecuta la app
 uvicorn backend.main:app --reload --port 8000
 ```
 
-### 🌐 Accede a la app
+### 🌐 Accede a la app local
 Abre tu navegador en **http://localhost:8000**
+
+---
+
+## ⚡ Despliegue en Vercel
+
+1. Ve a tu panel de **[Vercel](https://vercel.com/new)**.
+2. Selecciona **Import Git Repository** e importa `Roygr26/recetasmart-rd`.
+3. En la sección **Environment Variables**, añade:
+   - `GEMINI_API_KEY`: Tu clave de Google AI Studio.
+   - *(Opcional)* `SUCURSAL_DEFAULT`: `La Vega` (o la ciudad de tu preferencia).
+4. Haz clic en **Deploy**. ¡Listo! Vercel servirá el frontend desde su CDN y los endpoints vía Serverless Functions en Python.
 
 ---
 

@@ -32,9 +32,12 @@ async def lifespan(app: FastAPI):
     logger.info("   Sucursal por defecto: %s", settings.SUCURSAL_DEFAULT)
     logger.info("   Gemini API Key: %s", "✅ configurada" if settings.GEMINI_API_KEY else "❌ FALTA")
     # Limpiar caché expirado al arrancar
-    removed = await clear_expired()
-    if removed:
-        logger.info("   🗑️  Cache expirado limpiado: %d entradas", removed)
+    try:
+        removed = await clear_expired()
+        if removed:
+            logger.info("   🗑️  Cache expirado limpiado: %d entradas", removed)
+    except Exception as e:
+        logger.warning("   ⚠️  No se pudo limpiar el caché al arrancar: %s", e)
     yield
     logger.info("👋 RecetaSmart RD cerrando...")
 
@@ -89,15 +92,17 @@ async def health():
 
 
 # ── Frontend estático ────────────────────────────────────────────
+_PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+_STATIC_DIR = _PUBLIC_DIR if _PUBLIC_DIR.exists() else _FRONTEND_DIR
 
-if _FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(_FRONTEND_DIR)), name="static")
+if _STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     @app.get("/")
     async def serve_frontend():
         """Sirve el index.html."""
-        index = _FRONTEND_DIR / "index.html"
+        index = _STATIC_DIR / "index.html"
         if index.exists():
             return FileResponse(str(index))
         raise HTTPException(status_code=404, detail="Frontend no encontrado")
