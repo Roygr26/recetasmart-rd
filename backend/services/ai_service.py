@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from google import genai
@@ -123,48 +124,40 @@ async def match_best_product(
     ingredient: dict[str, str],
     products: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Usa Gemini para seleccionar el mejor producto que matchea un ingrediente."""
+    """Selecciona el mejor producto que corresponde al ingrediente de forma rápida y sin consumir cuota."""
     if not products:
         return {"match_index": -1, "confidence": 0.0, "reasoning": "No hay productos disponibles"}
 
-    # Preparar descripción de productos para Gemini
-    products_desc = "\n".join(
-        f"  [{i}] {p.get('name', '?')} — RD${p.get('price', 0):.2f} — {p.get('unit', 'N/A')}"
-        for i, p in enumerate(products)
-    )
+    ing_name = ingredient.get("name", "").lower()
+    search_term = ingredient.get("search_term", "").lower()
+    terms = set(re.findall(r"\w+", f"{ing_name} {search_term}"))
+    stop_words = {"de", "la", "el", "los", "las", "un", "una", "con", "en", "para", "al", "o", "y", "del"}
+    key_terms = terms - stop_words
 
-    prompt = f"""Ingrediente buscado: {ingredient.get('name', '')} ({ingredient.get('quantity', '')})
+    best_idx = 0
+    best_score = -1.0
 
-Productos disponibles:
-{products_desc}
+    for i, p in enumerate(products):
+        p_name = p.get("name", "").lower()
+        p_words = set(re.findall(r"\w+", p_name))
+        
+        # Coincidencia de términos clave
+        overlap = len(key_terms.intersection(p_words))
+        
+        # Bonus por coincidencia exacta del search_term
+        if search_term and search_term in p_name:
+            overlap += 2
+            
+        # Ponderación por posición del buscador (la tienda ya ordena por relevancia)
+        position_weight = (len(products) - i) / max(len(products), 1)
+        score = overlap * 10 + position_weight
 
-Selecciona el mejor match."""
+        if score > best_score:
+            best_score = score
+            best_idx = i
 
-    client = _get_client()
-    models_to_try = list(dict.fromkeys([settings.GEMINI_MODEL, "gemini-3.5-flash", "gemini-3.1-flash-lite"]))
-
-    for model_name in models_to_try:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=_MATCH_SYSTEM,
-                    response_mime_type="application/json",
-                    response_schema=_MATCH_SCHEMA,
-                    temperature=0.1,
-                ),
-            )
-
-            result = json.loads(response.text)
-            idx = result.get("match_index", -1)
-            # Validar índice
-            if idx < 0 or idx >= len(products):
-                result["match_index"] = -1
-            return result
-        except Exception as e:
-            logger.warning("Error en match_best_product con %s: %s", model_name, e)
-
-    # Fallback: seleccionar el más barato si la IA no responde
-    cheapest = min(range(len(products)), key=lambda i: products[i].get("price", float("inf")))
-    return {"match_index": cheapest, "confidence": 0.5, "reasoning": "Fallback: producto más barato"}
+    return {
+        "match_index": best_idx,
+        "confidence": 0.9 if best_score > 0 else 0.5,
+        "reasoning": f"Coincidencia seleccionada: {products[best_idx].get('name')}",
+    }
